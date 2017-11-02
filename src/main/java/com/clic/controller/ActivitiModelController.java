@@ -85,6 +85,7 @@ public class ActivitiModelController {
             newModel.setMetaInfo(modelObjectNode.toString());
             newModel.setName(name);
             newModel.setKey(key);
+
             repositoryService.saveModel(newModel);
             ObjectNode editorNode = objectMapper.createObjectNode();
             editorNode.put("id", "canvas");

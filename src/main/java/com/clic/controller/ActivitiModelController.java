@@ -9,6 +9,7 @@ import org.activiti.engine.form.FormProperty;
 import org.activiti.engine.form.StartFormData;
 import org.activiti.engine.repository.Model;
 import org.activiti.engine.repository.ProcessDefinition;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
+
+import static org.activiti.editor.constants.ModelDataJsonConstants.MODEL_ID;
+import static org.activiti.editor.constants.ModelDataJsonConstants.MODEL_NAME;
 
 /**
  * Created by DBQ on 2017/1/16.
@@ -45,6 +49,8 @@ public class ActivitiModelController {
     FormService formService;
     @Autowired
     private RepositoryService repositoryService;
+    @Autowired
+    private ObjectMapper objectMapper;
 
    /* @Autowired
     private ObjectMapper objectMapper;*/
@@ -77,7 +83,7 @@ public class ActivitiModelController {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             ObjectNode modelObjectNode = objectMapper.createObjectNode();
-            modelObjectNode.put(ModelDataJsonConstants.MODEL_NAME, name);
+            modelObjectNode.put(MODEL_NAME, name);
             modelObjectNode.put(ModelDataJsonConstants.MODEL_REVISION, 1);
             modelObjectNode.put(ModelDataJsonConstants.MODEL_DESCRIPTION,
             org.apache.commons.lang3.StringUtils.defaultString(description));
@@ -177,5 +183,30 @@ public class ActivitiModelController {
     public String delete(String modelId) {
         repositoryService.deleteModel(modelId);
         return "OK";
+    }
+
+    @RequestMapping(value = "/{modelId}/json", method = RequestMethod.GET, produces = "application/json")
+    public ObjectNode getEditorJson(@PathVariable String modelId) {
+        ObjectNode modelNode = null;
+        Model model = repositoryService.getModel(modelId);
+        if (model != null) {
+            try {
+                if (StringUtils.isNotEmpty(model.getMetaInfo())) {
+                    modelNode = (ObjectNode) objectMapper.readTree(model.getMetaInfo());
+                } else {
+                    modelNode = objectMapper.createObjectNode();
+                    modelNode.put(MODEL_NAME, model.getName());
+                }
+                modelNode.put(MODEL_ID, model.getId());
+                ObjectNode editorJsonNode = (ObjectNode) objectMapper
+                        .readTree(new String(repositoryService.getModelEditorSource(model.getId()), "utf-8"));
+                modelNode.put("model", editorJsonNode);
+
+            } catch (Exception e) {
+                LOGGER.error("Error creating model JSON", e);
+                throw new ActivitiException("Error creating model JSON", e);
+            }
+        }
+        return modelNode;
     }
 }

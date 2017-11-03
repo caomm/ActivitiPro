@@ -94,7 +94,11 @@
             <artifactId>activiti-cxf</artifactId>
             <version>${activiti.version}</version>
         </dependency>
-
+        <!--<dependency>
+            <groupId>org.activiti</groupId>
+            <artifactId>activiti-explorer</artifactId>
+            <version>${activiti.version}</version>
+        </dependency>-->
         <!-- 支持activiti缓存 -->
         <dependency>
             <groupId>org.infinispan</groupId>

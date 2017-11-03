@@ -5,15 +5,15 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vaadin.terminal.StreamResource;
 import org.activiti.editor.constants.ModelDataJsonConstants;
 import org.activiti.engine.*;
+import org.activiti.engine.form.FormProperty;
+import org.activiti.engine.form.StartFormData;
 import org.activiti.engine.repository.Model;
+import org.activiti.engine.repository.ProcessDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -106,10 +106,11 @@ public class ActivitiModelController {
     /**
      * 模型列表
      */
-    @RequestMapping("/list")
+    @RequestMapping(value = "/list",method = RequestMethod.GET, produces = "application/json;charset=utf-8")
     @ResponseBody
     public Object list() {
         List<Model> list = repositoryService.createModelQuery().list();
+
         return list;
     }
 
@@ -124,6 +125,10 @@ public class ActivitiModelController {
         final byte[] editorSourceExtra = repositoryService.getModelEditorSourceExtra(modelId);
         // final byte[] editorSource =
         // repositoryService.getModelEditorSource(modelId);
+        //ProcessDefinition processDefinition = repositoryService.getProcessDefinition(modelId);
+        //String startFormData = formService.getStartFormData(modelId).toString();
+
+       // List<FormProperty> formProperties = startFormData.getFormProperties();
         if (editorSourceExtra != null) {
             streamSource = new StreamResource.StreamSource() {
                 private static final long serialVersionUID = 1L;
@@ -163,5 +168,14 @@ public class ActivitiModelController {
             }
 
         }
+    }
+
+    /**
+     * 删除模型
+     */
+    @RequestMapping(value = "/delete")
+    public String delete(String modelId) {
+        repositoryService.deleteModel(modelId);
+        return "OK";
     }
 }

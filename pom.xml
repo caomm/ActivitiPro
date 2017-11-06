@@ -26,12 +26,23 @@
         <junit.version>4.12</junit.version>
         <activiti.version>5.22.0</activiti.version>
 
+        <jdbc.driver.groupId>com.oracle</jdbc.driver.groupId>
+        <!-- <jdbc.driver.artifactId>ojdbc14</jdbc.driver.artifactId>
+        <jdbc.driver.version>10.2.0.1.0</jdbc.driver.version> -->
+        <jdbc.driver.artifactId>ojdbc6</jdbc.driver.artifactId>
+        <jdbc.driver.version>11.2.0.1.0</jdbc.driver.version>
+
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <!-- 依赖项定义 -->
     <dependencies>
-
+        <dependency>
+            <groupId>${jdbc.driver.groupId}</groupId>
+            <artifactId>${jdbc.driver.artifactId}</artifactId>
+            <version>${jdbc.driver.version}</version>
+            <!--<scope>runtime</scope>-->
+        </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -327,7 +338,20 @@
         <!-- TEST end -->
     </dependencies>
 
-
+    <repositories>
+        <repository>
+            <id>local-repository</id>
+            <name>public repositories</name>
+            <!--<url>http://www.easestar.com/nexus/content/groups/public/</url>-->
+            <url>http://10.68.68.101:8081/nexus/content/groups/public/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
     <build>
     <resources>
         <resource>

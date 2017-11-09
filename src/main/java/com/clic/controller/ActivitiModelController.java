@@ -1,5 +1,6 @@
 package com.clic.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vaadin.terminal.StreamResource;
@@ -85,6 +86,9 @@ public class ActivitiModelController {
     }*/
     /**
      * 创建模型
+     * @author moafmoar
+     * @date 2017-11-03
+     *
      */
     @RequestMapping(value = "/create", method = RequestMethod.POST, produces = "application/json;charset=utf-8")
     @ResponseBody
@@ -125,6 +129,21 @@ public class ActivitiModelController {
             bpmnBytes = new BpmnXMLConverter().convertToXML(model);
             String processName = newModel.getName() + ".bpmn20.xml";
             Deployment deployment = repositoryService.createDeployment().name(newModel.getName()).addString(processName, new String(bpmnBytes,"utf-8")).deploy();*/
+
+
+            /*Model modelData = repositoryService.getModel(modelId);
+            BpmnJsonConverter jsonConverter = new BpmnJsonConverter();
+            JsonNode editorNode1 = new ObjectMapper()
+                    .readTree(repositoryService.getModelEditorSource(modelData.getId()));
+            BpmnModel bpmnModel = jsonConverter.convertToBpmnModel(editorNode1);
+            BpmnXMLConverter xmlConverter = new BpmnXMLConverter();
+            byte[] bpmnBytes = xmlConverter.convertToXML(bpmnModel);
+
+            ByteArrayInputStream in = new ByteArrayInputStream(bpmnBytes);
+            // IOUtils.copy(in, response.getOutputStream());
+            OutputStream os = response.getOutputStream();
+            String filename = bpmnModel.getMainProcess().getId() + ".bpmn20.xml";
+            response.setHeader("Content-Disposition", "attachment; filename=" + filename);*/
         } catch (Exception e) {
             e.getStackTrace();
         }
@@ -134,6 +153,8 @@ public class ActivitiModelController {
 
     /**
      * 模型列表
+     * @author moafmoar
+     * @date 2017-11-03
      */
     @RequestMapping(value = "/list",method = RequestMethod.GET, produces = "application/json;charset=utf-8")
     @ResponseBody
@@ -146,7 +167,8 @@ public class ActivitiModelController {
 
     /**
      * 获取流程图
-     *
+     *@author moafmoar
+     * @date 2017-11-03
      * @throws IOException
      */
     @RequestMapping("/getImage")
@@ -202,13 +224,27 @@ public class ActivitiModelController {
 
     /**
      * 删除模型
+     * @author moafmoar
+     * @date 2017-11-03
+     *
      */
     @RequestMapping(value = "/delete")
+    @ResponseBody
     public String delete(String modelId) {
-        repositoryService.deleteModel(modelId);
-        return "OK";
+        if (null != modelId){
+            repositoryService.deleteModel(modelId);
+            return "OK";
+        }
+        return "false";
+
     }
 
+    /**
+     *暂时未用
+     * 编辑模型前,读取模型
+     * @param modelId
+     * @return
+     */
     @RequestMapping(value = "/{modelId}/json", method = RequestMethod.GET, produces = "application/json")
     public ObjectNode getEditorJson(@PathVariable String modelId) {
         ObjectNode modelNode = null;
@@ -237,6 +273,7 @@ public class ActivitiModelController {
 
     /**
      * 保存模型
+     * 暂时未用
      */
     @RequestMapping(value = "/{modelId}/save", method = RequestMethod.POST)
     @ResponseStatus(value = HttpStatus.OK)
@@ -274,6 +311,13 @@ public class ActivitiModelController {
         }
     }
 
+    /**
+     * @desc 根据流程Id获取流程信息
+     * @author moafmoar
+     * @date 2017-11-08
+     * @param modelid
+     * @return
+     */
     @ResponseBody
     @RequestMapping(value = "/getModelById")
     public Map<String,Object> getModelById(String modelid){
@@ -289,5 +333,37 @@ public class ActivitiModelController {
         }
 
         return modelMap;
+    }
+
+
+    /**
+     * @desc 流程部署，并返回部署Id
+     * @author moafmoar
+     * @date 2017-11-09
+     * @param modelId
+     * @return
+     */
+    @RequestMapping("/deploy")
+    @ResponseBody
+    public Object deploy(String modelId) {
+        try {
+            Model modelData = repositoryService.getModel(modelId);
+            ObjectNode modelNode = (ObjectNode) new ObjectMapper()
+                    .readTree(repositoryService.getModelEditorSource(modelData.getId()));
+            byte[] bpmnBytes = null;
+            BpmnModel model = new BpmnJsonConverter().convertToBpmnModel(modelNode);
+            bpmnBytes = new BpmnXMLConverter().convertToXML(model);
+            String processName = modelData.getName() + ".bpmn20.xml";
+            /*Deployment deployment = repositoryService.createDeployment().name(modelData.getName())
+                    .addString(processName, new String(bpmnBytes, "utf-8"))
+                    .addClasspathResource("public/form/start.form")
+                    .addClasspathResource("public/form/leader.form")
+                    .deploy();*/
+            Deployment deployment1 = repositoryService.createDeployment().name(modelData.getName()).addString(processName, new String(bpmnBytes,"utf-8")).deploy();
+            return deployment1;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }

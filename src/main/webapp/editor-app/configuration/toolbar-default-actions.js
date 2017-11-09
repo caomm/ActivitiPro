@@ -326,7 +326,7 @@ var SaveModelCtrl = [ '$rootScope', '$scope', '$http', '$route', '$location',
 
     $scope.saveAndClose = function () {
     	$scope.save(function() {
-    		window.location.href = "./";
+            window.history.go(-1);//window.location.href = "./";
     	});
     };
     $scope.save = function (successCallback) {

@@ -3,27 +3,37 @@ package com.clic.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vaadin.terminal.StreamResource;
+import org.activiti.bpmn.converter.BpmnXMLConverter;
+import org.activiti.bpmn.model.BpmnModel;
 import org.activiti.editor.constants.ModelDataJsonConstants;
+import org.activiti.editor.language.json.converter.BpmnJsonConverter;
 import org.activiti.engine.*;
 import org.activiti.engine.form.FormProperty;
 import org.activiti.engine.form.StartFormData;
+import org.activiti.engine.impl.util.json.JSONObject;
+import org.activiti.engine.repository.Deployment;
 import org.activiti.engine.repository.Model;
 import org.activiti.engine.repository.ProcessDefinition;
+import org.apache.batik.transcoder.TranscoderInput;
+import org.apache.batik.transcoder.TranscoderOutput;
+import org.apache.batik.transcoder.image.PNGTranscoder;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import static org.activiti.editor.constants.ModelDataJsonConstants.MODEL_DESCRIPTION;
 import static org.activiti.editor.constants.ModelDataJsonConstants.MODEL_ID;
 import static org.activiti.editor.constants.ModelDataJsonConstants.MODEL_NAME;
 
@@ -77,15 +87,18 @@ public class ActivitiModelController {
      * 创建模型
      */
     @RequestMapping(value = "/create", method = RequestMethod.POST, produces = "application/json;charset=utf-8")
-    public void create(@RequestParam("name") String name, @RequestParam("key") String key,
+    @ResponseBody
+    public String  create(@RequestParam("name") String name, @RequestParam("key") String key,
                        @RequestParam(value = "description", required = false) String description, HttpServletRequest request,
                        HttpServletResponse response) {
+        String openUrl = null;
+        String modelId = null;
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             ObjectNode modelObjectNode = objectMapper.createObjectNode();
             modelObjectNode.put(MODEL_NAME, name);
             modelObjectNode.put(ModelDataJsonConstants.MODEL_REVISION, 1);
-            modelObjectNode.put(ModelDataJsonConstants.MODEL_DESCRIPTION,
+            modelObjectNode.put(MODEL_DESCRIPTION,
             org.apache.commons.lang3.StringUtils.defaultString(description));
             Model newModel = repositoryService.newModel();
             newModel.setMetaInfo(modelObjectNode.toString());
@@ -100,12 +113,22 @@ public class ActivitiModelController {
             stencilSetNode.put("namespace", "http://b3mn.org/stencilset/bpmn2.0#");
             editorNode.put("stencilset", stencilSetNode);
             repositoryService.addModelEditorSource(newModel.getId(), editorNode.toString().getBytes("utf-8"));
+            //repositoryService.getBpmnModel(newModel.getId());
+            modelId = newModel.getId();
             System.out.println(newModel.getId() + "===========newModel.getId()==============");
             System.out.println("url:"+request.getContextPath() + "/modeler.html?modelId=" + newModel.getId());
-            response.sendRedirect(request.getContextPath()+"/modeler.html?modelId=" + newModel.getId());
+            //response.sendRedirect("http://10.68.68.116:8090/ActivitiPro/modeler.html?modelId=" + newModel.getId());
+            openUrl = "http://10.68.68.116:8090/ActivitiPro/modeler.html?modelId=" + newModel.getId();
+           /* ObjectNode modelNode = (ObjectNode) new ObjectMapper().readTree(repositoryService.getModelEditorSource(newModel.getId()));
+            byte[] bpmnBytes = null;
+            BpmnModel model = new BpmnJsonConverter().convertToBpmnModel(modelNode);
+            bpmnBytes = new BpmnXMLConverter().convertToXML(model);
+            String processName = newModel.getName() + ".bpmn20.xml";
+            Deployment deployment = repositoryService.createDeployment().name(newModel.getName()).addString(processName, new String(bpmnBytes,"utf-8")).deploy();*/
         } catch (Exception e) {
             e.getStackTrace();
         }
+        return modelId;
     }
 
 
@@ -116,6 +139,7 @@ public class ActivitiModelController {
     @ResponseBody
     public Object list() {
         List<Model> list = repositoryService.createModelQuery().list();
+        List<Model> resultList =  repositoryService.createModelQuery().listPage(0, 10); //分页查询
 
         return list;
     }
@@ -208,5 +232,62 @@ public class ActivitiModelController {
             }
         }
         return modelNode;
+    }
+
+
+    /**
+     * 保存模型
+     */
+    @RequestMapping(value = "/{modelId}/save", method = RequestMethod.POST)
+    @ResponseStatus(value = HttpStatus.OK)
+    public void saveModel(@PathVariable String modelId, @RequestBody MultiValueMap<String, String> values) {
+        try {
+
+            Model model = repositoryService.getModel(modelId);
+
+            ObjectNode modelJson = (ObjectNode) objectMapper.readTree(model.getMetaInfo());
+
+            modelJson.put(MODEL_NAME, values.getFirst("name"));
+            modelJson.put(MODEL_DESCRIPTION, values.getFirst("description"));
+            model.setMetaInfo(modelJson.toString());
+            model.setName(values.getFirst("name"));
+            repositoryService.saveModel(model);
+            repositoryService.addModelEditorSource(model.getId(), values.getFirst("json_xml").getBytes("utf-8"));
+
+            InputStream svgStream = new ByteArrayInputStream(values.getFirst("svg_xml").getBytes("utf-8"));
+            TranscoderInput input = new TranscoderInput(svgStream);
+
+            PNGTranscoder transcoder = new PNGTranscoder();
+            // Setup output
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            TranscoderOutput output = new TranscoderOutput(outStream);
+
+            // Do the transformation
+            transcoder.transcode(input, output);
+            final byte[] result = outStream.toByteArray();
+            repositoryService.addModelEditorSourceExtra(model.getId(), result);
+            outStream.close();
+
+        } catch (Exception e) {
+            LOGGER.error("Error saving model", e);
+            throw new ActivitiException("Error saving model", e);
+        }
+    }
+
+    @ResponseBody
+    @RequestMapping(value = "/getModelById")
+    public Map<String,Object> getModelById(String modelid){
+        Model model = repositoryService.getModel(modelid);
+        Map<String,Object> modelMap  = new HashMap<>();
+        if (null!= model){
+            //JSONObject jsonObject = new JSONObject();
+
+            modelMap.put("id",model.getId());
+            modelMap.put("name",model.getName());
+            modelMap.put("createTime",model.getCreateTime());
+            modelMap.put("version",model.getVersion());
+        }
+
+        return modelMap;
     }
 }

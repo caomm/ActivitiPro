@@ -472,6 +472,10 @@ li.x-menu-list-item.x-menu-item-active a {
 .editor-icon-align-vertical:before {
 	content: 'q';
 }
+.editor-icon-close{
+	top: -3px;
+	font-size: 18px;
+}
 .editor-icon-close:before {
-    content: "X";
+    content: "返回";
 }
